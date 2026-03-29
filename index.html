@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Entreprise RP - Final</title>
+<style>
+body { margin:0; font-family: Arial; background:#0f172a; color:white; }
+.container { display:flex; height:100vh; }
+.login-box { margin:auto; background:#1e293b; padding:40px; border-radius:12px; width:300px; text-align:center; }
+input, button { width:90%; padding:10px; margin:8px 0; border-radius:6px; border:none; }
+button { background:#22c55e; color:white; font-weight:bold; cursor:pointer; }
+.dashboard { display:none; flex:1; flex-direction:column; padding:20px; overflow:auto; }
+header { display:flex; justify-content:space-between; align-items:center; }
+.box { background:#1e293b; padding:20px; margin:15px 0; border-radius:12px; }
+table { width:100%; border-collapse: collapse; margin-top:10px; }
+th, td { padding:8px; border-bottom:1px solid #334155; text-align:left; }
+th { background:#334155; }
+h2,h3 { margin:5px 0; }
+a { color:#f87171; text-decoration:none; cursor:pointer; }
+button.delete { background:#f87171; padding:5px 10px; font-size:12px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<!-- Login -->
+<div class="login-box" id="loginBox">
+<h2>🔐 Connexion</h2>
+<input type="text" id="username" placeholder="Nom d'utilisateur">
+<input type="password" id="password" placeholder="Mot de passe">
+<button onclick="login()">Connexion</button>
+<p id="error" style="color:#f87171;"></p>
+</div>
+
+<!-- Dashboard -->
+<div class="dashboard" id="dashboard">
+
+<header>
+<h2>👋 Bienvenue <span id="userDisplay"></span> (<span id="roleDisplay"></span>)</h2>
+<a onclick="logout()">Se déconnecter</a>
+</header>
+
+<!-- Ajouter action -->
+<div class="box">
+<h3>➕ Ajouter une action</h3>
+<input type="text" id="actionInput" placeholder="Ex: Intervention EMS">
+<input type="number" id="montantInput" placeholder="€">
+<button onclick="addAction()">Ajouter</button>
+</div>
+
+<!-- Fiche de paye -->
+<div class="box">
+<h3>💰 Fiche de paye</h3>
+<p>Total gagné : <strong id="totalPay">0 €</strong></p>
+</div>
+
+<!-- Historique utilisateur -->
+<div class="box">
+<h3>📄 Historique de vos actions</h3>
+<table id="userActionsTable">
+<tr><th>Date</th><th>Action</th><th>Montant</th><th>Supprimer</th></tr>
+</table>
+</div>
+
+<!-- Panel Patron / HG -->
+<div class="box" id="adminPanel" style="display:none;">
+<h3>👑 Panel Patron / HG</h3>
+<h4>Actions</h4>
+<table id="adminTable">
+<tr><th>Utilisateur</th><th>Action</th><th>Montant</th><th>Date</th><th>Supprimer</th></tr>
+</table>
+<h4>Gestion des comptes</h4>
+<table id="userTable">
+<tr><th>Utilisateur</th><th>Rôle</th><th>Supprimer</th></tr>
+</table>
+</div>
+
+</div>
+<script>
+// =====================
+// Données utilisateurs simulées
+// =====================
+let users = JSON.parse(localStorage.getItem('users')) || [
+    {username:'test', password:'1234', role:'hg'},
+    {username:'patron', password:'1234', role:'patron'},
+    {username:'employe', password:'1234', role:'employe'}
+];
+
+let actions = JSON.parse(localStorage.getItem('actions')) || [];
+let currentUser = null;
+
+// =====================
+// Fonctions LocalStorage
+// =====================
+function saveData() {
+    localStorage.setItem('users', JSON.stringify(users));
+    localStorage.setItem('actions', JSON.stringify(actions));
+}
+
+// =====================
+// Login
+// =====================
+function login(){
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const error = document.getElementById('error');
+    const user = users.find(u=>u.username===username && u.password===password);
+    if(user){
+        currentUser = user;
+        document.getElementById('loginBox').style.display='none';
+        document.getElementById('dashboard').style.display='flex';
+        document.getElementById('userDisplay').innerText = user.username;
+        document.getElementById('roleDisplay').innerText = user.role;
+        if(user.role==='patron' || user.role==='hg'){
+            document.getElementById('adminPanel').style.display='block';
+        }
+        updateTables();
+    } else {
+        error.innerText = 'Utilisateur ou mot de passe incorrect';
+    }
+}
+
+// =====================
+// Logout
+// =====================
+function logout(){
+    currentUser = null;
+    document.getElementById('loginBox').style.display='block';
+    document.getElementById('dashboard').style.display='none';
+    document.getElementById('username').value='';
+    document.getElementById('password').value='';
+}
+
+// =====================
+// Ajouter action
+// =====================
+function addAction(){
+    const actionName = document.getElementById('actionInput').value.trim();
+    const montant = parseInt(document.getElementById('montantInput').value);
+    if(!actionName || isNaN(montant)) return;
+    const date = new Date().toLocaleString();
+    actions.push({user:currentUser.username, action:actionName, montant:montant, date:date});
+    saveData();
+    updateTables();
+    document.getElementById('actionInput').value='';
+    document.getElementById('montantInput').value='';
+}
+
+// =====================
+// Supprimer action
+// =====================
+function deleteAction(index){
+    actions.splice(index,1);
+    saveData();
+    updateTables();
+}
+
+// =====================
+// Supprimer utilisateur
+// =====================
+function deleteUser(index){
+    const username = users[index].username;
+    if(username === currentUser.username){ alert("Vous ne pouvez pas supprimer votre propre compte"); return; }
+    if(!confirm("Supprimer "+username+" ?")) return;
+    // Supprimer les actions de l'utilisateur
+    actions = actions.filter(a=>a.user!==username);
+    users.splice(index,1);
+    saveData();
+    updateTables();
+}
+
+// =====================
+// Mettre à jour tableaux et paye
+// =====================
+function updateTables(){
+    // Historique utilisateur
+    const userTable = document.getElementById('userActionsTable');
+    userTable.innerHTML='<tr><th>Date</th><th>Action</th><th>Montant</th><th>Supprimer</th></tr>';
+    let total=0;
+    actions.forEach((a,i)=>{
+        if(a.user===currentUser.username){
+            const row=userTable.insertRow();
+            row.insertCell(0).innerText=a.date;
+            row.insertCell(1).innerText=a.action;
+            row.insertCell(2).innerText=a.montant+' €';
+            const del=row.insertCell(3);
+            const btn=document.createElement('button');
+            btn.className='delete';
+            btn.innerText='Supprimer';
+            btn.onclick=()=>deleteAction(actions.indexOf(a));
+            del.appendChild(btn);
+            total+=a.montant;
+        }
+    });
+    document.getElementById('totalPay').innerText = total+' €';
+
+    // Panel admin actions
+    if(currentUser.role==='patron' || currentUser.role==='hg'){
+        const adminTable = document.getElementById('adminTable');
+        adminTable.innerHTML='<tr><th>Utilisateur</th><th>Action</th><th>Montant</th><th>Date</th><th>Supprimer</th></tr>';
+        actions.forEach((a,i)=>{
+            const row=adminTable.insertRow();
+            row.insertCell(0).innerText=a.user;
+            row.insertCell(1).innerText=a.action;
+            row.insertCell(2).innerText=a.montant+' €';
+            row.insertCell(3).innerText=a.date;
+            const del=row.insertCell(4);
+            const btn=document.createElement('button');
+            btn.className='delete';
+            btn.innerText='Supprimer';
+            btn.onclick=()=>deleteAction(actions.indexOf(a));
+            del.appendChild(btn);
+        });
+
+        // Panel admin utilisateurs
+        const userTableAdmin = document.getElementById('userTable');
+        userTableAdmin.innerHTML='<tr><th>Utilisateur</th><th>Rôle</th><th>Supprimer</th></tr>';
+        users.forEach((u,i)=>{
+            const row=userTableAdmin.insertRow();
+            row.insertCell(0).innerText=u.username;
+            row.insertCell(1).innerText=u.role;
+            const del=row.insertCell(2);
+            const btn=document.createElement('button');
+            btn.className='delete';
+            btn.innerText='Supprimer';
+            btn.onclick=()=>deleteUser(i);
+            del.appendChild(btn);
+        });
+    }
+}
+</script>
+
+</body>
+</html>

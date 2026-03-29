@@ -2,22 +2,22 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Entreprise RP - Final</title>
+<title>Entreprise RP - Ultimate</title>
 <style>
 body { margin:0; font-family: Arial; background:#0f172a; color:white; }
 .container { display:flex; height:100vh; }
-.login-box { margin:auto; background:#1e293b; padding:40px; border-radius:12px; width:300px; text-align:center; }
-input, button { width:90%; padding:10px; margin:8px 0; border-radius:6px; border:none; }
+.login-box { margin:auto; background:#1e293b; padding:40px; border-radius:12px; width:320px; text-align:center; }
+input, button, select { width:90%; padding:10px; margin:6px 0; border-radius:6px; border:none; }
 button { background:#22c55e; color:white; font-weight:bold; cursor:pointer; }
+button.delete { background:#f87171; padding:5px 10px; font-size:12px; }
 .dashboard { display:none; flex:1; flex-direction:column; padding:20px; overflow:auto; }
 header { display:flex; justify-content:space-between; align-items:center; }
 .box { background:#1e293b; padding:20px; margin:15px 0; border-radius:12px; }
 table { width:100%; border-collapse: collapse; margin-top:10px; }
 th, td { padding:8px; border-bottom:1px solid #334155; text-align:left; }
 th { background:#334155; }
-h2,h3 { margin:5px 0; }
+h2,h3,h4 { margin:5px 0; }
 a { color:#f87171; text-decoration:none; cursor:pointer; }
-button.delete { background:#f87171; padding:5px 10px; font-size:12px; }
 </style>
 </head>
 <body>
@@ -66,17 +66,32 @@ button.delete { background:#f87171; padding:5px 10px; font-size:12px; }
 <!-- Panel Patron / HG -->
 <div class="box" id="adminPanel" style="display:none;">
 <h3>👑 Panel Patron / HG</h3>
+
 <h4>Actions</h4>
 <table id="adminTable">
 <tr><th>Utilisateur</th><th>Action</th><th>Montant</th><th>Date</th><th>Supprimer</th></tr>
 </table>
+
 <h4>Gestion des comptes</h4>
+<input type="text" id="newUser" placeholder="Nom d'utilisateur">
+<input type="password" id="newPass" placeholder="Mot de passe">
+<select id="newRole">
+<option value="employe">Employé</option>
+<option value="patron">Patron</option>
+<option value="hg">HG</option>
+</select>
+<button onclick="createUser()">Créer compte</button>
+
 <table id="userTable">
 <tr><th>Utilisateur</th><th>Rôle</th><th>Supprimer</th></tr>
 </table>
+
+<h4>⚠️ Reset complet</h4>
+<button onclick="resetAll()">Reset tout</button>
 </div>
 
 </div>
+
 <script>
 // =====================
 // Données utilisateurs simulées
@@ -86,12 +101,11 @@ let users = JSON.parse(localStorage.getItem('users')) || [
     {username:'patron', password:'1234', role:'patron'},
     {username:'employe', password:'1234', role:'employe'}
 ];
-
 let actions = JSON.parse(localStorage.getItem('actions')) || [];
 let currentUser = null;
 
 // =====================
-// Fonctions LocalStorage
+// Sauvegarde
 // =====================
 function saveData() {
     localStorage.setItem('users', JSON.stringify(users));
@@ -157,6 +171,22 @@ function deleteAction(index){
 }
 
 // =====================
+// Créer utilisateur
+// =====================
+function createUser(){
+    const username = document.getElementById('newUser').value.trim();
+    const password = document.getElementById('newPass').value.trim();
+    const role = document.getElementById('newRole').value;
+    if(!username || !password) { alert("Remplir tous les champs"); return; }
+    if(users.some(u=>u.username===username)) { alert("Utilisateur déjà existant"); return; }
+    users.push({username,password,role});
+    saveData();
+    document.getElementById('newUser').value='';
+    document.getElementById('newPass').value='';
+    updateTables();
+}
+
+// =====================
 // Supprimer utilisateur
 // =====================
 function deleteUser(index){
@@ -168,6 +198,22 @@ function deleteUser(index){
     users.splice(index,1);
     saveData();
     updateTables();
+}
+
+// =====================
+// Reset complet
+// =====================
+function resetAll(){
+    if(!confirm("Reset complet : toutes les données seront perdues ?")) return;
+    users = [
+        {username:'test', password:'1234', role:'hg'},
+        {username:'patron', password:'1234', role:'patron'},
+        {username:'employe', password:'1234', role:'employe'}
+    ];
+    actions = [];
+    saveData();
+    updateTables();
+    alert("Reset effectué !");
 }
 
 // =====================

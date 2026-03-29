@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Entreprise RP - Ultimate</title>
+<title>Entreprise RP - Clean</title>
 <style>
 body { margin:0; font-family: Arial; background:#0f172a; color:white; }
 .container { display:flex; height:100vh; }
@@ -94,18 +94,18 @@ a { color:#f87171; text-decoration:none; cursor:pointer; }
 
 <script>
 // =====================
-// Données utilisateurs simulées
+// Données clean (toujours reset pour éviter ancien localStorage)
 // =====================
-let users = JSON.parse(localStorage.getItem('users')) || [
+let users = [
     {username:'test', password:'1234', role:'hg'},
     {username:'patron', password:'1234', role:'patron'},
     {username:'employe', password:'1234', role:'employe'}
 ];
-let actions = JSON.parse(localStorage.getItem('actions')) || [];
+let actions = [];
 let currentUser = null;
 
 // =====================
-// Sauvegarde
+// Sauvegarde localStorage
 // =====================
 function saveData() {
     localStorage.setItem('users', JSON.stringify(users));
@@ -116,9 +116,14 @@ function saveData() {
 // Login
 // =====================
 function login(){
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value.trim();
     const error = document.getElementById('error');
+
+    // Load fresh data pour clean
+    users = JSON.parse(localStorage.getItem('users')) || users;
+    actions = JSON.parse(localStorage.getItem('actions')) || [];
+
     const user = users.find(u=>u.username===username && u.password===password);
     if(user){
         currentUser = user;
@@ -126,9 +131,13 @@ function login(){
         document.getElementById('dashboard').style.display='flex';
         document.getElementById('userDisplay').innerText = user.username;
         document.getElementById('roleDisplay').innerText = user.role;
-        if(user.role==='patron' || user.role==='hg'){
+
+        // Panel admin seulement pour Patron/HG
+        document.getElementById('adminPanel').style.display = 'none';
+        if(currentUser.role==='patron' || currentUser.role==='hg'){
             document.getElementById('adminPanel').style.display='block';
         }
+
         updateTables();
     } else {
         error.innerText = 'Utilisateur ou mot de passe incorrect';
@@ -171,9 +180,10 @@ function deleteAction(index){
 }
 
 // =====================
-// Créer utilisateur
+// Créer utilisateur (Patron/HG seulement)
 // =====================
 function createUser(){
+    if(currentUser.role!=='patron' && currentUser.role!=='hg') return;
     const username = document.getElementById('newUser').value.trim();
     const password = document.getElementById('newPass').value.trim();
     const role = document.getElementById('newRole').value;
@@ -187,13 +197,13 @@ function createUser(){
 }
 
 // =====================
-// Supprimer utilisateur
+// Supprimer utilisateur (Patron/HG seulement)
 // =====================
 function deleteUser(index){
+    if(currentUser.role!=='patron' && currentUser.role!=='hg') return;
     const username = users[index].username;
     if(username === currentUser.username){ alert("Vous ne pouvez pas supprimer votre propre compte"); return; }
     if(!confirm("Supprimer "+username+" ?")) return;
-    // Supprimer les actions de l'utilisateur
     actions = actions.filter(a=>a.user!==username);
     users.splice(index,1);
     saveData();
@@ -201,9 +211,10 @@ function deleteUser(index){
 }
 
 // =====================
-// Reset complet
+// Reset complet (Patron/HG seulement)
 // =====================
 function resetAll(){
+    if(currentUser.role!=='patron' && currentUser.role!=='hg') return;
     if(!confirm("Reset complet : toutes les données seront perdues ?")) return;
     users = [
         {username:'test', password:'1234', role:'hg'},
@@ -241,7 +252,7 @@ function updateTables(){
     });
     document.getElementById('totalPay').innerText = total+' €';
 
-    // Panel admin actions
+    // Panel admin actions et utilisateurs
     if(currentUser.role==='patron' || currentUser.role==='hg'){
         const adminTable = document.getElementById('adminTable');
         adminTable.innerHTML='<tr><th>Utilisateur</th><th>Action</th><th>Montant</th><th>Date</th><th>Supprimer</th></tr>';
@@ -259,7 +270,6 @@ function updateTables(){
             del.appendChild(btn);
         });
 
-        // Panel admin utilisateurs
         const userTableAdmin = document.getElementById('userTable');
         userTableAdmin.innerHTML='<tr><th>Utilisateur</th><th>Rôle</th><th>Supprimer</th></tr>';
         users.forEach((u,i)=>{
